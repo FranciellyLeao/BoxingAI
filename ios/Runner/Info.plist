@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>Boxing AI</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.boxing.ai.boxingAi</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>boxing_ai</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0.0</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<key>UIMainStoryboardFile</key>
+	<string>Main</string>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+
+	<!-- Permissões Nativas Obrigatórias da Câmera e Microfone para AltStore PAL -->
+	<key>NSCameraUsageDescription</key>
+	<string>O aplicativo Boxing AI precisa de acesso à câmera frontal para rastrear a extensão dos seus braços, calcular a velocidade dos socos e contar seus Jabs em tempo real através da tecnologia MediaPipe Pose.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>O aplicativo Boxing AI utiliza o microfone para capturar o áudio dos treinos e oferecer feedback sonoro durante os rounds.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>O aplicativo utiliza a galeria apenas se você desejar salvar relatórios de treino ou capturas de tela.</string>
+
+	<!-- Otimizações de Desempenho Metal & Frame Rate -->
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+	<key>UIViewControllerBasedStatusBarAppearance</key>
+	<false/>
+</dict>
+</plist>

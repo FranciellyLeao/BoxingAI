@@ -1,0 +1,45 @@
+name: Build iOS IPA (AltStore PAL)
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java Development Kit
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          architecture: x64
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build iOS IPA without Codesign (AltStore PAL)
+        run: flutter build ipa --release --no-codesign --export-options-plist=ios/ExportOptions.plist
+
+      - name: Create Payload and Zip to IPA
+        run: |
+          mkdir -p build/ios/ipa_payload/Payload
+          cp -R build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app build/ios/ipa_payload/Payload/
+          cd build/ios/ipa_payload
+          zip -r ../BoxingAI.ipa Payload
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BoxingAI-iOS-IPA
+          path: build/ios/BoxingAI.ipa
