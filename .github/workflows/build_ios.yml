@@ -36,13 +36,21 @@ jobs:
           pod install --repo-update || pod install || true
           cd ..
 
-      - name: Build iOS App Bundle without Codesign
-        run: flutter build ios --release --no-codesign
+      - name: Build iOS App without Code Signing via xcodebuild
+        run: |
+          xcodebuild -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -sdk iphoneos \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            clean build
 
       - name: Create Payload and Zip to IPA
         run: |
           mkdir -p build/ios/ipa_payload/Payload
-          cp -R build/ios/iphoneos/Runner.app build/ios/ipa_payload/Payload/
+          find ios/build -name "Runner.app" -exec cp -R {} build/ios/ipa_payload/Payload/ \; || cp -R ~/Library/Developer/Xcode/DerivedData/*/Build/Products/Release-iphoneos/Runner.app build/ios/ipa_payload/Payload/
           cd build/ios/ipa_payload
           zip -r ../BoxingAI.ipa Payload
 
