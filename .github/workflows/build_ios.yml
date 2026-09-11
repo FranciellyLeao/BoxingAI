@@ -30,13 +30,25 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build iOS App sem Code Signing
-        run: CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO flutter build ios --release --no-codesign
+      - name: Build iOS App sem Code Signing (config-only + xcodebuild)
+        run: |
+          flutter build ios --release --no-codesign --config-only
+          cd ios
+          xcodebuild -workspace Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination generic/platform=iOS \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            DEVELOPMENT_TEAM="" \
+            build
 
       - name: Create Payload and Zip to IPA
         run: |
           mkdir -p build/ios/ipa_payload/Payload
-          cp -R build/ios/iphoneos/Runner.app build/ios/ipa_payload/Payload/
+          find . -name "Runner.app" -type d -exec cp -R {} build/ios/ipa_payload/Payload/ \;
           cd build/ios/ipa_payload
           zip -r ../BoxingAI.ipa Payload
 
