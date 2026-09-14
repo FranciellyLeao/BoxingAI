@@ -30,9 +30,14 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build iOS App sem Code Signing (config-only + xcodebuild)
+      - name: Install CocoaPods with iOS 13.0 Deployment Target
         run: |
-          flutter build ios --release --no-codesign --config-only
+          cd ios
+          pod install --repo-update || pod install || true
+          cd ..
+
+      - name: Build iOS App sem Code Signing (xcodebuild)
+        run: |
           cd ios
           xcodebuild -workspace Runner.xcworkspace \
             -scheme Runner \
@@ -43,7 +48,8 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             DEVELOPMENT_TEAM="" \
-            build
+            IPHONEOS_DEPLOYMENT_TARGET=13.0 \
+            clean build
 
       - name: Create Payload and Zip to IPA
         run: |
