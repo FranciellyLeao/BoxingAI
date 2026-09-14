@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import '../../../workout_plan/data/datasources/workout_plan_local_datasource.dart';
-import '../../../workout_plan/presentation/controllers/plan_notifier.dart';
 import '../../../workout_session/data/datasources/workout_local_datasource.dart';
 import '../../../workout_session/data/repositories/workout_repository_impl.dart';
 import '../../../workout_session/domain/repositories/workout_repository.dart';
@@ -13,6 +12,7 @@ import '../../data/datasources/camera_data_source.dart';
 import '../../data/datasources/pose_detector_data_source.dart';
 import '../../domain/entities/body_pose.dart';
 import '../../domain/entities/punch_metrics.dart';
+import '../../domain/usecases/detect_defense_usecase.dart';
 import '../../domain/usecases/detect_jab_usecase.dart';
 
 enum RoundStatus { ready, inProgress, paused, completed }
@@ -88,11 +88,12 @@ class PunchDetectorState {
   }
 }
 
-/// Controller reativo do motor de Visão Computacional, treino e avanço do Plano de 30 Dias.
+/// Controller reativo do motor de Visão Computacional, socos e defesa.
 class PunchDetectorNotifier extends ValueNotifier<PunchDetectorState> {
   final CameraDataSource _cameraDataSource;
   final PoseDetectorDataSource _poseDetectorDataSource;
   final DetectJabUseCase _detectJabUseCase;
+  final DetectDefenseUseCase _detectDefenseUseCase;
   final WorkoutRepository _workoutRepository;
   final WorkoutPlanLocalDataSource _planLocalDataSource;
 
@@ -104,11 +105,13 @@ class PunchDetectorNotifier extends ValueNotifier<PunchDetectorState> {
     CameraDataSource? cameraDataSource,
     PoseDetectorDataSource? poseDetectorDataSource,
     DetectJabUseCase? detectJabUseCase,
+    DetectDefenseUseCase? detectDefenseUseCase,
     WorkoutRepository? workoutRepository,
     WorkoutPlanLocalDataSource? planLocalDataSource,
   })  : _cameraDataSource = cameraDataSource ?? CameraDataSource(),
         _poseDetectorDataSource = poseDetectorDataSource ?? PoseDetectorDataSource(),
         _detectJabUseCase = detectJabUseCase ?? DetectJabUseCase(),
+        _detectDefenseUseCase = detectDefenseUseCase ?? DetectDefenseUseCase(),
         _workoutRepository = workoutRepository ?? WorkoutRepositoryImpl(),
         _planLocalDataSource = planLocalDataSource ?? WorkoutPlanLocalDataSource(),
         super(PunchDetectorState.initial());
@@ -134,15 +137,23 @@ class PunchDetectorNotifier extends ValueNotifier<PunchDetectorState> {
           final BodyPose? pose = await _poseDetectorDataSource.processImage(inputImage);
 
           if (pose != null) {
-            final updatedMetrics = _detectJabUseCase.execute(pose, value.metrics);
+            // 1. Processa Socos (Jab, Cross, Hook)
+            final updatedPunchMetrics = _detectJabUseCase.execute(pose, value.metrics);
 
-            if (updatedMetrics.isPunchPeakDetected) {
+            // 2. Processa Defesa (Slip, Duck)
+            final updatedDefenseMetrics = _detectDefenseUseCase.execute(pose, updatedPunchMetrics.defenseMetrics);
+
+            final combinedMetrics = updatedPunchMetrics.copyWith(
+              defenseMetrics: updatedDefenseMetrics,
+            );
+
+            if (combinedMetrics.isPunchPeakDetected || updatedDefenseMetrics.isDefenseDetectedThisFrame) {
               _triggerHitFeedback();
             }
 
             value = value.copyWith(
               currentPose: pose,
-              metrics: updatedMetrics,
+              metrics: combinedMetrics,
             );
           } else {
             value = value.copyWith(currentPose: null);
@@ -154,7 +165,7 @@ class PunchDetectorNotifier extends ValueNotifier<PunchDetectorState> {
     } catch (e) {
       value = value.copyWith(
         isLoading: false,
-        errorMessage: 'Falha ao inicializar a Câmera/IA: $e',
+        errorMessage: 'Falha ao inicializar Câmera/IA: $e',
       );
     }
   }
@@ -183,6 +194,7 @@ class PunchDetectorNotifier extends ValueNotifier<PunchDetectorState> {
   void resetRound() {
     _roundTimer?.cancel();
     _detectJabUseCase.reset();
+    _detectDefenseUseCase.reset();
     value = value.copyWith(
       roundStatus: RoundStatus.ready,
       remainingSeconds: 180,
@@ -192,7 +204,6 @@ class PunchDetectorNotifier extends ValueNotifier<PunchDetectorState> {
     startRound();
   }
 
-  /// Conclui o treino, grava a sessão e avança automaticamente o plano de 30 dias.
   Future<WorkoutSessionResult> finishWorkoutAndSaveSession() async {
     _roundTimer?.cancel();
     _cameraDataSource.stopImageStream();
@@ -203,14 +214,12 @@ class PunchDetectorNotifier extends ValueNotifier<PunchDetectorState> {
     final double avgExtension = (value.metrics.leftArmExtensionRatio + value.metrics.rightArmExtensionRatio) / 2;
     final double precision = (avgExtension * 100).clamp(75.0, 99.0);
 
-    // 1. Salva a sessão no histórico e calcula XP/Streak
     final result = await _workoutRepository.saveCompletedSession(
       jabsCount: punchesCount,
       durationSeconds: durationExecuted == 0 ? 180 : durationExecuted,
       precisionPercentage: precision,
     );
 
-    // 2. Avança automaticamente o dia no Plano de 30 Dias
     try {
       final days = await _planLocalDataSource.getPlanDays();
       final activeDay = days.firstWhere((d) => d.isUnlocked && !d.isCompleted, orElse: () => days.first);

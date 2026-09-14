@@ -1,6 +1,7 @@
+import 'defense_metrics.dart';
 import 'punch_type.dart';
 
-/// Métricas biométricas e contadores individuais dos 3 golpes (Jab, Cross, Hook).
+/// Métricas biométricas integradas contendo estatísticas de socos (Jab, Cross, Hook) e defesas (Slip, Duck).
 class PunchMetrics {
   final double leftElbowAngle;
   final double rightElbowAngle;
@@ -11,6 +12,7 @@ class PunchMetrics {
   final int totalJabsCount;
   final int totalCrossesCount;
   final int totalHooksCount;
+  final DefenseMetrics defenseMetrics;
 
   const PunchMetrics({
     required this.leftElbowAngle,
@@ -22,11 +24,13 @@ class PunchMetrics {
     required this.totalJabsCount,
     required this.totalCrossesCount,
     required this.totalHooksCount,
+    required this.defenseMetrics,
   });
 
   int get totalPunchesCount => totalJabsCount + totalCrossesCount + totalHooksCount;
+  int get totalDefensesCount => defenseMetrics.totalSlipsCount + defenseMetrics.totalDucksCount;
 
-  factory PunchMetrics.initial() => const PunchMetrics(
+  factory PunchMetrics.initial() => PunchMetrics(
         leftElbowAngle: 0.0,
         rightElbowAngle: 0.0,
         leftArmExtensionRatio: 0.0,
@@ -36,6 +40,7 @@ class PunchMetrics {
         totalJabsCount: 0,
         totalCrossesCount: 0,
         totalHooksCount: 0,
+        defenseMetrics: DefenseMetrics.initial(),
       );
 
   PunchMetrics copyWith({
@@ -48,6 +53,7 @@ class PunchMetrics {
     int? totalJabsCount,
     int? totalCrossesCount,
     int? totalHooksCount,
+    DefenseMetrics? defenseMetrics,
   }) {
     return PunchMetrics(
       leftElbowAngle: leftElbowAngle ?? this.leftElbowAngle,
@@ -59,6 +65,7 @@ class PunchMetrics {
       totalJabsCount: totalJabsCount ?? this.totalJabsCount,
       totalCrossesCount: totalCrossesCount ?? this.totalCrossesCount,
       totalHooksCount: totalHooksCount ?? this.totalHooksCount,
+      defenseMetrics: defenseMetrics ?? this.defenseMetrics,
     );
   }
 }

@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/cyber_boxing_theme.dart';
+import '../../domain/entities/defense_metrics.dart';
 import '../../domain/entities/punch_metrics.dart';
 import '../../domain/entities/punch_type.dart';
 import '../controllers/punch_detector_notifier.dart';
 
-/// HUD Flutuante com Design System Cyber-Boxing e Telemetria Tríplice de Golpes (Jab, Cross, Hook).
+/// HUD Flutuante com Design System Cyber-Boxing, Telemetria Tríplice de Golpes e Contadores de Esquiva (Slip/Duck).
 class PunchDashboardOverlay extends StatelessWidget {
   final PunchMetrics metrics;
   final double fps;
@@ -34,8 +35,11 @@ class PunchDashboardOverlay extends StatelessWidget {
     return '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
   }
 
-  Color _getPunchColor(PunchType punchType) {
-    switch (punchType) {
+  Color _getBannerColor() {
+    if (metrics.defenseMetrics.activeDefenseType != DefenseType.none) {
+      return CyberBoxingTheme.neonCyan;
+    }
+    switch (metrics.activePunchType) {
       case PunchType.jab:
         return CyberBoxingTheme.neonGreen;
       case PunchType.cross:
@@ -47,8 +51,20 @@ class PunchDashboardOverlay extends StatelessWidget {
     }
   }
 
-  String _getPunchBannerText(PunchType punchType) {
-    switch (punchType) {
+  String _getBannerText() {
+    if (metrics.defenseMetrics.activeDefenseType != DefenseType.none) {
+      switch (metrics.defenseMetrics.activeDefenseType) {
+        case DefenseType.slipLeft:
+          return '🛡️ ESQUIVA ESQUERDA (SLIP)!';
+        case DefenseType.slipRight:
+          return '🛡️ ESQUIVA DIREITA (SLIP)!';
+        case DefenseType.duck:
+          return '⬇️ DEFESA ABAIXADA (DUCK)!';
+        default:
+          return '🛡️ ESQUIVA PERFEITA!';
+      }
+    }
+    switch (metrics.activePunchType) {
       case PunchType.jab:
         return '⚡ JAB DETECTADO! ⚡';
       case PunchType.cross:
@@ -62,8 +78,11 @@ class PunchDashboardOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool isHitActive = metrics.activePunchType != PunchType.none || hasRecentHit;
-    final Color punchAccentColor = _getPunchColor(metrics.activePunchType);
+    final bool isActionActive = metrics.activePunchType != PunchType.none ||
+        metrics.defenseMetrics.activeDefenseType != DefenseType.none ||
+        hasRecentHit;
+
+    final Color bannerColor = _getBannerColor();
 
     return SafeArea(
       child: Padding(
@@ -88,7 +107,7 @@ class PunchDashboardOverlay extends StatelessWidget {
                   ),
                 ),
 
-                // Timer de Round com estilo Cyber Neon
+                // Timer do Round
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 8.0),
                   decoration: BoxDecoration(
@@ -156,26 +175,26 @@ class PunchDashboardOverlay extends StatelessWidget {
               ],
             ),
 
-            // CENTRO DA TELA: Banner Animado do Golpe Desferido (Jab, Cross ou Hook)
-            if (isHitActive)
+            // CENTRO DA TELA: Banner Animado de Golpe ou Esquiva Detectada
+            if (isActionActive)
               AnimatedScale(
                 scale: hasRecentHit ? 1.25 : 1.0,
                 duration: const Duration(milliseconds: 150),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
                   decoration: BoxDecoration(
-                    color: punchAccentColor,
+                    color: bannerColor,
                     borderRadius: BorderRadius.circular(30.0),
                     boxShadow: [
                       BoxShadow(
-                        color: punchAccentColor.withOpacity(0.8),
+                        color: bannerColor.withOpacity(0.8),
                         blurRadius: 30,
                         spreadRadius: 6,
                       )
                     ],
                   ),
                   child: Text(
-                    _getPunchBannerText(metrics.activePunchType),
+                    _getBannerText(),
                     style: const TextStyle(
                       color: Colors.black,
                       fontSize: 18,
@@ -186,7 +205,7 @@ class PunchDashboardOverlay extends StatelessWidget {
                 ),
               ),
 
-            // BARRA INFERIOR: HUD TRÍPLICE COM JAB, CROSS E HOOK
+            // BARRA INFERIOR: HUD COM SOCOS E ESQUIVAS (SLIPS / DUCKS)
             Container(
               padding: const EdgeInsets.all(16.0),
               decoration: BoxDecoration(
@@ -204,24 +223,29 @@ class PunchDashboardOverlay extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Contadores Tríplices (Jabs, Crosses, Hooks)
+                  // Badges de Golpes (Jabs, Crosses, Hooks)
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _PunchCounterBadge(
+                      _StatCounterBadge(
                         label: 'JABS',
                         count: metrics.totalJabsCount,
                         accentColor: CyberBoxingTheme.neonGreen,
                       ),
-                      _PunchCounterBadge(
+                      _StatCounterBadge(
                         label: 'CROSSES',
                         count: metrics.totalCrossesCount,
                         accentColor: Colors.orangeAccent,
                       ),
-                      _PunchCounterBadge(
+                      _StatCounterBadge(
                         label: 'HOOKS',
                         count: metrics.totalHooksCount,
                         accentColor: CyberBoxingTheme.neonPink,
+                      ),
+                      _StatCounterBadge(
+                        label: 'ESQUIVAS',
+                        count: metrics.defenseMetrics.totalSlipsCount,
+                        accentColor: CyberBoxingTheme.neonCyan,
                       ),
                     ],
                   ),
@@ -255,12 +279,12 @@ class PunchDashboardOverlay extends StatelessWidget {
   }
 }
 
-class _PunchCounterBadge extends StatelessWidget {
+class _StatCounterBadge extends StatelessWidget {
   final String label;
   final int count;
   final Color accentColor;
 
-  const _PunchCounterBadge({
+  const _StatCounterBadge({
     required this.label,
     required this.count,
     required this.accentColor,
@@ -269,10 +293,10 @@ class _PunchCounterBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 6.0),
       decoration: BoxDecoration(
         color: accentColor.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(16.0),
+        borderRadius: BorderRadius.circular(14.0),
         border: Border.all(color: accentColor.withOpacity(0.5), width: 1.5),
       ),
       child: Column(
@@ -281,9 +305,9 @@ class _PunchCounterBadge extends StatelessWidget {
             label,
             style: TextStyle(
               color: accentColor,
-              fontSize: 10,
+              fontSize: 9,
               fontWeight: FontWeight.bold,
-              letterSpacing: 1.0,
+              letterSpacing: 0.8,
             ),
           ),
           const SizedBox(height: 2),
@@ -291,7 +315,7 @@ class _PunchCounterBadge extends StatelessWidget {
             '$count',
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 22,
+              fontSize: 18,
               fontWeight: FontWeight.black,
             ),
           ),

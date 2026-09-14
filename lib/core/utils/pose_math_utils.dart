@@ -1,10 +1,9 @@
 import 'dart:math' as math;
 import '../../features/punch_detection/domain/entities/pose_landmark.dart';
 
-/// Utilitário matemático otimizado para geometria 2D/3D e cálculo biomecânico de golpes (Jab, Cross, Hook).
+/// Utilitário matemático otimizado para geometria 2D/3D, projeção perspectiva e cálculos de Esquiva (Slip & Duck).
 class PoseMathUtils {
   /// Calcula o ângulo em graus no ponto central [p2] formado pelos segmentos (p1-p2) e (p3-p2).
-  /// Exemplo: p1 = Ombro, p2 = Cotovelo (vértice), p3 = Punho.
   static double calculateAngleDegrees(
     PoseLandmark p1,
     PoseLandmark p2,
@@ -30,7 +29,7 @@ class PoseMathUtils {
     return angleRadians * (180.0 / math.pi);
   }
 
-  /// Calcula a distância euclidiana 3D entre dois pontos de landmark.
+  /// Calcula a distância euclidiana 3D entre dois pontos.
   static double calculateDistance3D(PoseLandmark p1, PoseLandmark p2) {
     final double dx = p1.x - p2.x;
     final double dy = p1.y - p2.y;
@@ -38,7 +37,7 @@ class PoseMathUtils {
     return math.sqrt((dx * dx) + (dy * dy) + (dz * dz));
   }
 
-  /// Calcula a razão de extensão do braço (0.0 a 1.0).
+  /// Razão de extensão do braço (0.0 a 1.0).
   static double calculateArmExtensionRatio(
     PoseLandmark shoulder,
     PoseLandmark elbow,
@@ -54,23 +53,35 @@ class PoseMathUtils {
     return directDistance / totalArmSegmentLength;
   }
 
-  /// Verifica se o ângulo do cotovelo está na faixa característica do HOOK (~90°, entre 75° e 115°).
+  /// Verifica se o ângulo do cotovelo é característico do HOOK (~90°).
   static bool isElbowBentForHook(double elbowAngleDegrees) {
     return elbowAngleDegrees >= 75.0 && elbowAngleDegrees <= 115.0;
   }
 
-  /// Calcula o nível de rotação do ombro traseiro em relação à linha frontal (útil para detectar CROSS).
-  static double calculateShoulderRotationDepth(PoseLandmark rearShoulder, PoseLandmark leadShoulder) {
-    // No MediaPipe Pose, a coordenada Z representa a profundidade em relação à câmera
-    return (leadShoulder.z - rearShoulder.z).abs();
+  /// Calcula o desvio lateral da cabeça em relação ao centro dos ombro/quadril para detectar SLIP LEFT / RIGHT.
+  static double calculateHeadLateralShift({
+    required PoseLandmark shoulderLeft,
+    required PoseLandmark shoulderRight,
+    required PoseLandmark wristOrNose,
+  }) {
+    final double shoulderMidX = (shoulderLeft.x + shoulderRight.x) / 2.0;
+    return wristOrNose.x - shoulderMidX;
   }
 
-  /// Verifica se o punho cruzou a linha lateral do tronco (característica do HOOK).
-  static bool isWristCrossingTorso(PoseLandmark wrist, PoseLandmark oppositeShoulder, bool isLeftArm) {
-    if (isLeftArm) {
-      return wrist.x >= oppositeShoulder.x - 20;
-    } else {
-      return wrist.x <= oppositeShoulder.x + 20;
-    }
+  /// Calcula a queda vertical da cabeça em relação à linha dos ombros para detectar DUCK (agachamento).
+  static double calculateHeadVerticalDrop({
+    required PoseLandmark shoulderLeft,
+    required PoseLandmark shoulderRight,
+    required PoseLandmark headNode,
+  }) {
+    final double shoulderMidY = (shoulderLeft.y + shoulderRight.y) / 2.0;
+    return headNode.y - shoulderMidY;
+  }
+
+  /// Transforma uma coordenada 3D com profundidade Z em um raio de projeção perspectiva para o Avatar 3D.
+  static double calculatePerspectiveRadius(double baseRadius, double zDepth) {
+    // Membros mais próximos da câmera (Z menor) recebem maior raio visual
+    final double factor = (1.0 - (zDepth / 1000.0)).clamp(0.6, 1.8);
+    return baseRadius * factor;
   }
 }

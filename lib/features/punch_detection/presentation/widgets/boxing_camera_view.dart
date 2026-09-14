@@ -6,10 +6,10 @@ import '../../../../core/theme/cyber_boxing_theme.dart';
 import '../../../workout_session/presentation/screens/round_summary_screen.dart';
 import '../../domain/entities/punch_type.dart';
 import '../controllers/punch_detector_notifier.dart';
-import 'pose_overlay_painter.dart';
+import 'cyber_avatar_3d_painter.dart';
 import 'punch_dashboard_overlay.dart';
 
-/// Tela de Treino de Câmera integrada com navegação automática para o Resumo do Round.
+/// Tela de Treino de Câmera com Stack de pré-visualização, Avatar 3D Cyber-Boxing volumétrico e HUD reativo.
 class BoxingCameraView extends StatefulWidget {
   const BoxingCameraView({super.key});
 
@@ -103,7 +103,7 @@ class _BoxingCameraViewState extends State<BoxingCameraView> with WidgetsBinding
                   CircularProgressIndicator(color: CyberBoxingTheme.neonGreen),
                   SizedBox(height: 20),
                   Text(
-                    'Inicializando Câmera & IA de Pose...',
+                    'Inicializando Câmera & IA de Avatar 3D...',
                     style: TextStyle(
                       color: CyberBoxingTheme.textPrimary,
                       fontSize: 16,
@@ -160,16 +160,17 @@ class _BoxingCameraViewState extends State<BoxingCameraView> with WidgetsBinding
                 child: CameraPreview(controller),
               ),
 
-              // 2. CustomPaint com PoseOverlayPainter por cima da imagem
+              // 2. CustomPaint com o RENDERIZADOR DO AVATAR/ROBÔ 3D CYBER-BOXING
               CustomPaint(
-                painter: PoseOverlayPainter(
+                painter: CyberAvatar3DPainter(
                   pose: state.currentPose,
                   isFrontCamera: true,
-                  isArmExtended: state.metrics.activePunchType == PunchType.jab || state.hasRecentHit,
+                  isArmExtended: state.metrics.activePunchType != PunchType.none || state.hasRecentHit,
+                  activeDefenseType: state.metrics.defenseMetrics.activeDefenseType,
                 ),
               ),
 
-              // 3. HUD Flutuante Cyber-Boxing
+              // 3. HUD Flutuante Cyber-Boxing (Contador de Socos, Slips/Ducks, Round Timer, FPS)
               PunchDashboardOverlay(
                 metrics: state.metrics,
                 fps: state.currentFPS,
